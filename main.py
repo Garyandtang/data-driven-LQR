@@ -29,7 +29,6 @@ class LTI:
 
     def get_optimal_K(self):
         K, S, E = ct.dlqr(self.A, self.B, self.Q, self.R)
-        print("K = ", -K)
         return -K
 
     def check_controllable(self):
@@ -65,11 +64,8 @@ def main():
     x0 = np.array([[1], [0]])
 
 def simulation(x0, lti):
-    lti = LTI()
     K = lti.K0
     print("K is stable: ", lti.check_feedback_stabilizable(K))
-
-    x0 = np.array([[1], [0]])
     x = x0
     data_vector = np.zeros(0, dtype=data_pair)
     for i in range(100):
@@ -80,6 +76,7 @@ def simulation(x0, lti):
         data.u = u
         data.x_next = x_next
         data.K = K
+        x = x_next
         data_vector = np.append(data_vector, data)
 
     return data_vector
@@ -92,7 +89,7 @@ def learning():
     iteration = 100
     k_vector = np.zeros((n * m, iteration))
     k_vector[:, 0] = K.reshape((n * m, 1))[:, 0]
-    for i in range(iteration):
+    for i in range(iteration-1):
         # random generate x0 from uniform distribution [-3, 3]
         x0 = np.random.uniform(-3, 3, (n, 1))
         print("x0 = ", x0)
@@ -102,8 +99,16 @@ def learning():
         # solve K from S
         S_22 = S[n:, n:]
         S_12 = S[:n, n:]
-        K = -np.linalg.inv(S_22) @ S_12
+        K = -np.linalg.inv(S_22) @ S_12.T
+        k_vector[:, i+1] = K.reshape((n * m, 1))[:, 0]
+        lti.update_K0(K)
         print("K = ", K)
+
+    # plot K
+    plt.figure()
+    plt.plot(k_vector[0, :], label="K11")
+    plt.show()
+
 
 
 def solve_S_from_data_collect(data_vector, Q, R):
@@ -133,6 +138,8 @@ def solve_S_from_data_collect(data_vector, Q, R):
 
 if __name__ == '__main__':
     learning()
+    lti = LTI()
+    print("optimal K = ", lti.get_optimal_K())
     #     # random generate x0 from uniform distribution [-3, 3]
     #     x0 = np.random.uniform(-3, 3, (n, 1))
     #     print("x0 = ", x0)
