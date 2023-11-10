@@ -9,20 +9,33 @@ class data_pair:
         self.x_next = np.zeros((n, 1))
         self.K = np.zeros((m, n))
 
-
+# self.A = np.array([[0, 1], [-1, -1]])
+#         self.B = np.array([[0], [1]])
+#
+#         self.Q = np.array([[1, 0], [0, 1]])
+#         self.R = np.array([[1]])
+#
+#         self.K0 = np.array([[0.7, 0.5]])
 class LTI:
     def __init__(self):
-        self.A = np.array([[0, 1], [-1, -1]])
-        self.B = np.array([[0], [1]])
+        self.A = np.array([[1.2, 0.5, 0.2], [0.1, 0.8, 0.3], [0.5, 0.1, 0.5]])
+        self.B = np.array([[1, 0.1], [0.5, 0.2], [0.7, 1.0]])
 
-        self.Q = np.array([[1, 0], [0, 1]])
-        self.R = np.array([[1]])
+        self.Q = np.array([[1, 0.1, 0.1], [0.1, 1, 0.1], [0.1, 0.1, 1]])
+        self.R = np.array([[1, 0], [0, 1]])
 
-        self.K0 = np.array([[0.7, 0.5]])
+        self.K0 = np.array([[-0.62098405, -0.47989766, -0.12446556],
+                            [-0.47989766, -0.47989766, -0.22446556]])
         print("init K is stable: ", self.check_feedback_stabilizable(self.K0))
 
     def step(self, x, u):
-        return self.A @ x + self.B @ u
+        # assert u.shape[0] == self.B.shape[1]
+        # assert x.shape[0] == self.A.shape[0]
+        x_next = self.A @ x + self.B @ u
+        # check nan
+        if np.isnan(x_next).any():
+            print("nan")
+        return x_next
 
     def cost(self, x, u):
         return x.T @ self.Q @ x + u.T @ self.R @ u
@@ -51,32 +64,22 @@ class LTI:
         self.K0 = K
 
 
-def main():
-    # LQR
-    A = np.array([[0, 1], [-1, -1]])
-    B = np.array([[0], [1]])
-    Q = np.array([[1, 0], [0, 1]])
-    R = np.array([[1]])
-    K, S, E = ct.lqr(A, B, Q, R)
-    print("K = ", K)
-
-    # Simulation
-    x0 = np.array([[1], [0]])
-
-def simulation(x0, lti):
+def simulation(lti):
     K = lti.K0
+    n = lti.A.shape[0]
+    m = lti.B.shape[1]
     print("K is stable: ", lti.check_feedback_stabilizable(K))
-    x = x0
     data_vector = np.zeros(0, dtype=data_pair)
-    for i in range(100):
-        u = np.array([[0.5 * np.sin(np.pi*i/40) + 0.3 * np.sin(np.pi*i/5)]])
+    for i in range(1000):
+        # random generate u from uniform distribution [-3, 3]
+        x = np.random.uniform(-4, 4, (n, 1))
+        u = np.random.uniform(-0.1, 0.1, (m, 1))
         x_next = lti.step(x, u)
         data = data_pair(lti.B.shape[0], lti.B.shape[1])
         data.x = x
         data.u = u
         data.x_next = x_next
         data.K = K
-        x = x_next
         data_vector = np.append(data_vector, data)
 
     return data_vector
@@ -86,14 +89,12 @@ def learning():
     K = lti.K0
     n = lti.A.shape[0]
     m = lti.B.shape[1]
-    iteration = 100
+    iteration = 10
     k_vector = np.zeros((n * m, iteration))
     k_vector[:, 0] = K.reshape((n * m, 1))[:, 0]
     for i in range(iteration-1):
         # random generate x0 from uniform distribution [-3, 3]
-        x0 = np.random.uniform(-3, 3, (n, 1))
-        print("x0 = ", x0)
-        data_vector = simulation(x0, lti)
+        data_vector = simulation(lti)
         # solve S from data
         S = solve_S_from_data_collect(data_vector, lti.Q, lti.R)
         # solve K from S
@@ -105,9 +106,15 @@ def learning():
         print("K = ", K)
 
     # plot K
-    plt.figure()
-    plt.plot(k_vector[0, :], label="K11")
-    plt.show()
+    optimal_K = lti.get_optimal_K().reshape((n * m, 1))
+    for i in range(k_vector.shape[0]):
+        plt.figure()
+        plt.plot(k_vector[i, :], label="K_{}".format(i))
+        # plot a line
+        plt.plot(np.ones((iteration, 1)) * optimal_K[i], label="K_{}_optimal".format(i))
+        plt.legend()
+        plt.show()
+
 
 
 
@@ -140,10 +147,7 @@ if __name__ == '__main__':
     learning()
     lti = LTI()
     print("optimal K = ", lti.get_optimal_K())
-    #     # random generate x0 from uniform distribution [-3, 3]
-    #     x0 = np.random.uniform(-3, 3, (n, 1))
-    #     print("x0 = ", x0)
-    #     data_vector = simulation(x0, lti)
+
 
 
 
