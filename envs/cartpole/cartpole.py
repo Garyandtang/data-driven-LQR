@@ -70,6 +70,7 @@ class CartPole(BaseEnv):
 
         # create a PyBullet client connection
         self.PYB_CLIENT = -1
+        self.GUI = gui
         if self.GUI:
             self.PYB_CLIENT = p.connect(p.GUI)
         else:
@@ -97,12 +98,6 @@ class CartPole(BaseEnv):
         self.GRAVITY = 9.81
         self.EFFECTIVE_POLE_LENGTH, self.POLE_MASS, self.CART_MASS = self._parse_urdf_parameters(self.URDF_PATH)
 
-        # Create X_GOAL and U_GOAL references for the assigned task.
-        self.U_GOAL = np.zeros(1)
-        if self.Task == Task.STABILIZATION:
-            self.X_GOAL = np.array([0, 0, 0, 0])  # (x, theta, x_dot, theta_dot)
-        else:
-            raise ValueError('[ERROR] in CartPole.__init__(), TASK TYPE')
 
         # self._setup_symbolic()
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.nState,), dtype=np.float32)
@@ -156,7 +151,24 @@ class CartPole(BaseEnv):
 
         self.state = self.get_state()
 
-        return self.state, {}, {}, {}, {}
+        reward = self._compute_reward(self.state, action)
+
+        done = self._is_done(self.state)
+
+        return self.state, reward, done, {}, {}
+
+    def _compute_reward(self, state, action):
+        x, theta, x_dot, theta_dot = state
+        # reward = 1 - np.cos(theta)
+        reward = 1 - np.cos(theta) - 1* np.square(x_dot) - 1 * np.square(theta_dot)
+        return reward
+
+    def _is_done(self, state):
+        x, theta, x_dot, theta_dot = state
+        if np.abs(x) > 2.4 or np.abs(theta) > 12 * 2 * np.pi / 360:
+            return True
+        else:
+            return False
 
     @property
     def get_id(self):
