@@ -6,3 +6,7 @@ class Task(str, Enum):
 
     STABILIZATION = 'stabilization'  # Stabilization task.
     TRAJ_TRACKING = 'traj_tracking'  # Trajectory tracking task.
+
+class RewardType(str, Enum):
+    LQR = 'LQR'
+    RL = 'RL'

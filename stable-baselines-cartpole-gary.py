@@ -10,7 +10,7 @@ from envs.cartpole.cartpole import CartPole
 env = gym.make("Cartpole1-v1")
 
 model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=100000)
+model.learn(total_timesteps=1000)
 
 vec_env = CartPole(gui=True)
 obs, _ = vec_env.reset()

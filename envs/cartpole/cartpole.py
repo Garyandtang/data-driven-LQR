@@ -26,7 +26,7 @@ from utils.symbolic_system import FirstOrderModel
 from utils import utils
 
 # from controllers.lqr.lqr import LQR
-from utils.enum_class import Task
+from utils.enum_class import Task, RewardType
 from envs.base_env import BaseEnv
 from functools import partial
 
@@ -63,9 +63,7 @@ class CartPole(BaseEnv):
     }
 
     def __init__(self, init_state=None, gui=False, **kwargs):
-        # todo: something useless now, but will be useful later
         self.state = None
-        # todo: super class!!
         super().__init__(**kwargs)
 
         # create a PyBullet client connection
@@ -78,21 +76,10 @@ class CartPole(BaseEnv):
         # disable urdf caching for randomization via reload urdf
         p.setPhysicsEngineParameter(enableFileCaching=1)
 
-        # set gui and rendering size
-        self.RENDER_HEIGHT = int(200)
-        self.RENDER_WIDTH = int(320)
-
         # set the init state
-        # (x, x_dot, theta, theta_dot)
         self.nState = 4
         self.nControl = 1
-        if init_state is None:
-            self.INIT_X, self.INIT_THETA, self.INIT_X_DOT, self.INIT_THETA_DOT = np.zeros(self.nState)
-        elif isinstance(init_state, np.ndarray) and len(init_state) == self.nState:
-            self.INIT_X, self.INIT_THETA, self.INIT_X_DOT, self.INIT_THETA_DOT = init_state
-        else:
-            raise ValueError('[ERROR] in CartPole.__init__(), init_state, type: {}, size: {}'.format(type(init_state),
-                                                                                                     len(init_state)))
+        self.set_init_state(init_state)
 
         # get physical properties from URDF (as default parameters)
         self.GRAVITY = 9.81
@@ -101,6 +88,24 @@ class CartPole(BaseEnv):
 
         # self._setup_symbolic()
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.nState,), dtype=np.float32)
+
+        # reward related
+        self.reward_type = RewardType.LQR
+        self.Q = np.diag(np.array([10, 10, 10, 10]))
+        self.R = np.diag(np.array([1]))
+
+
+    def set_init_state(self, init_state):
+        # set the init state
+        # (x, x_dot, theta, theta_dot)
+        if init_state is None:
+            self.INIT_X, self.INIT_THETA, self.INIT_X_DOT, self.INIT_THETA_DOT = np.zeros(self.nState)
+        elif isinstance(init_state, np.ndarray) and len(init_state) == self.nState:
+            self.INIT_X, self.INIT_THETA, self.INIT_X_DOT, self.INIT_THETA_DOT = init_state
+        else:
+            raise ValueError('[ERROR] in CartPole.__init__(), init_state, type: {}, size: {}'.format(type(init_state),
+                                                                                                     len(init_state)))
+
 
     def reset(self, seed=None):
         # reset environment
@@ -159,8 +164,11 @@ class CartPole(BaseEnv):
 
     def _compute_reward(self, state, action):
         x, theta, x_dot, theta_dot = state
-        # reward = 1 - np.cos(theta)
-        reward = 1 - np.cos(theta) - 1* np.square(x_dot) - 1 * np.square(theta_dot)
+        if self.reward_type == RewardType.RL:
+            # reward = 1 - np.cos(theta)
+            reward = 1 - np.cos(theta) - 1 * np.square(x_dot) - 1 * np.square(theta_dot)
+        elif self.reward_type == RewardType.LQR:
+            reward = - (state.T @ self.Q @ state + action.T @ self.R @ action)
         return reward
 
     def _is_done(self, state):
