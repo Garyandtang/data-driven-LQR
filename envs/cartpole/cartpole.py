@@ -94,17 +94,27 @@ class CartPole(BaseEnv):
         self.Q = np.diag(np.array([10, 10, 10, 10]))
         self.R = np.diag(np.array([1]))
 
+        # data driven LQR related
+        self.n_lqr = 3
+        self.m_lqr = 1
+        self.Q_lqr = np.diag(np.array([10, 10, 10]))
+        self.R_lqr = np.diag(np.array([1]))
+
+        self.reset()
+
 
     def set_init_state(self, init_state):
         # set the init state
         # (x, x_dot, theta, theta_dot)
         if init_state is None:
-            self.INIT_X, self.INIT_THETA, self.INIT_X_DOT, self.INIT_THETA_DOT = np.zeros(self.nState)
+            self.INIT_X, self.INIT_THETA, self.INIT_X_DOT, self.INIT_THETA_DOT = np.random.uniform(-0.03, 0.03, (self.nState,))
         elif isinstance(init_state, np.ndarray) and len(init_state) == self.nState:
             self.INIT_X, self.INIT_THETA, self.INIT_X_DOT, self.INIT_THETA_DOT = init_state
         else:
             raise ValueError('[ERROR] in CartPole.__init__(), init_state, type: {}, size: {}'.format(type(init_state),
                                                                                                      len(init_state)))
+        # Randomize initial state.
+
 
 
     def reset(self, seed=None):
@@ -168,8 +178,12 @@ class CartPole(BaseEnv):
             # reward = 1 - np.cos(theta)
             reward = 1 - np.cos(theta) - 1 * np.square(x_dot) - 1 * np.square(theta_dot)
         elif self.reward_type == RewardType.LQR:
-            reward = - (state.T @ self.Q @ state + action.T @ self.R @ action)
+            reward = - self.compute_one_step_cost(state, action)
         return reward
+
+    def compute_one_step_cost(self, state, action):
+        cost = state.T @ self.Q @ state + action.T @ self.R @ action
+        return cost
 
     def _is_done(self, state):
         x, theta, x_dot, theta_dot = state
@@ -181,6 +195,13 @@ class CartPole(BaseEnv):
     @property
     def get_id(self):
         return self.id
+
+    def get_lqr_state(self):
+        # [theta, theta_dot, x_dot]
+        cart_state = p.getJointState(self.CARTPOLE_ID, jointIndex=0, physicsClientId=self.PYB_CLIENT)
+        pole_state = p.getJointState(self.CARTPOLE_ID, jointIndex=1, physicsClientId=self.PYB_CLIENT)
+        state = np.array([pole_state[0], pole_state[1], cart_state[1]])
+        return state
 
     def get_state(self):
         # [x, theta, x_dot, theta_dot]
