@@ -97,7 +97,7 @@ class CartPole(BaseEnv):
         # data driven LQR related
         self.n_lqr = 3
         self.m_lqr = 1
-        self.Q_lqr = np.diag(np.array([10, 10, 10]))
+        self.Q_lqr = np.diag(np.array([100, 100, 10]))
         self.R_lqr = np.diag(np.array([1]))
 
         self.reset()
@@ -128,7 +128,7 @@ class CartPole(BaseEnv):
 
         # load the cartpole urdf
         self.CARTPOLE_ID = p.loadURDF(self.URDF_PATH, basePosition=[0, 0, 0], physicsClientId=self.PYB_CLIENT)
-        self.plane = p.loadURDF("plane.urdf", physicsClientId=self.PYB_CLIENT)
+        # self.plane = p.loadURDF("plane.urdf", physicsClientId=self.PYB_CLIENT)
 
         # force control
         for i in [-1, 0, 1]:  # Slider, cart, and pole.
@@ -156,11 +156,19 @@ class CartPole(BaseEnv):
 
     def step(self, action):
         for _ in range(self.PYB_STEPS_PER_CTRL):
+            for i in [0, 1]:  # Slider-to-cart and cart-to-pole joints.
+                p.setJointMotorControl2(self.CARTPOLE_ID, jointIndex=i, controlMode=p.VELOCITY_CONTROL, force=0,
+                                        physicsClientId=self.PYB_CLIENT)
             # apply force to cartpole
             p.setJointMotorControl2(self.CARTPOLE_ID,
                                     jointIndex=0,  # slider-to-cart joint
                                     controlMode=p.TORQUE_CONTROL,
                                     force=action,
+                                    physicsClientId=self.PYB_CLIENT)
+            p.setJointMotorControl2(self.CARTPOLE_ID,
+                                    jointIndex=1,  # slider-to-cart joint
+                                    controlMode=p.TORQUE_CONTROL,
+                                    force=0,
                                     physicsClientId=self.PYB_CLIENT)
             p.stepSimulation(physicsClientId=self.PYB_CLIENT)
 
@@ -210,7 +218,7 @@ class CartPole(BaseEnv):
         theta = p.getJointState(self.CARTPOLE_ID, jointIndex=1, physicsClientId=self.PYB_CLIENT)[0]
         theta_dot = p.getJointState(self.CARTPOLE_ID, jointIndex=1, physicsClientId=self.PYB_CLIENT)[1]
         theta = utils.normalize_angle(theta)
-        state = np.hstack((x, theta, x_dot, theta_dot))
+        state = np.hstack((x, x_dot, theta, theta_dot))
 
         self.state = np.array(state)
         return self.state

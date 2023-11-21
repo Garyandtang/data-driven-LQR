@@ -11,9 +11,9 @@ class data_pair:
         self.x_next = np.zeros((n, 1))
         self.K = np.zeros((m, n))
 
-
+# -2.78974875,  -5.24884431, -44.98615057, -11.86937562
 class fb_controller:
-    def __init__(self, K = np.array([-10, -10, -5])):
+    def __init__(self, K = np.array([[ 44.98615057, 11.86937562,5.24884431]])):
         self.K = K
 
     def fb_control(self, state):
@@ -33,8 +33,8 @@ def simulation(controller):
     x = robot.get_lqr_state()
     n = robot.n_lqr
     m = robot.m_lqr
-    for i in range(100):
-        u = K @ x + np.random.uniform(-0.01, 0.01, (m,))
+    for i in range(1000):
+        u = K @ x + np.random.uniform(-10, 10, (m,))
         x_next, _, _, _, _ = robot.step(u)
         data = data_pair(n, m)
         data.x = x.reshape((n,))
@@ -74,6 +74,7 @@ def learning():
     robot = CartPole()
     controller = fb_controller()
     K = controller.get_K()
+    print("init K: ", K)
     n = robot.n_lqr
     m = robot.m_lqr
     Q = robot.Q_lqr
@@ -98,11 +99,12 @@ def learning():
 
 if __name__ == '__main__':
     K = learning()
+    # K = np.zeros(K.shape)
     controller = fb_controller(K)
     robot = CartPole(gui=True)
     while 1:
         state = robot.get_lqr_state()
-        print(state)
+        print("state: ", state)
         u = controller.fb_control(state)
         robot.step(u)
         print(u)
