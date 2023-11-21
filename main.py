@@ -72,8 +72,8 @@ def simulation(lti):
     data_vector = np.zeros(0, dtype=data_pair)
     for i in range(1000):
         # random generate u from uniform distribution [-3, 3]
-        x = np.random.uniform(-4, 4, (n, 1))
-        u = np.random.uniform(-0.1, 0.1, (m, 1))
+        x = np.random.uniform(-4, 4, (n,))
+        u = np.random.uniform(-0.1, 0.1, (m,))
         x_next = lti.step(x, u)
         data = data_pair(lti.B.shape[0], lti.B.shape[1])
         data.x = x
@@ -122,22 +122,22 @@ def solve_S_from_data_collect(data_vector, Q, R):
     # S can be solved with least square method
     n = data_vector[0].x.shape[0]
     m = data_vector[0].u.shape[0]
-    xi = np.zeros((n + m, 1))   # xi = [x; u]
-    zeta = np.zeros((n + m, 1))  # zeta = [x_next; u_next]
+    xi = np.zeros((n + m,))   # xi = [x; u]
+    zeta = np.zeros((n + m,))  # zeta = [x_next; u_next]
     temp = np.kron(xi.T, zeta.T)
-    A = np.zeros((data_vector.shape[0], temp.shape[1]))
-    b = np.zeros((data_vector.shape[0], 1))
+    A = np.zeros((data_vector.shape[0], temp.shape[0]))
+    b = np.zeros((data_vector.shape[0],))
     for i in range(data_vector.shape[0]):
         x = data_vector[i].x
         u = data_vector[i].u
-        xi[:n, :] = x
-        xi[n:, :] = u
-        zeta[:n, :] = data_vector[i].x_next
+        xi[:n] = x
+        xi[n:] = u
+        zeta[:n] = data_vector[i].x_next
         u_next = data_vector[i].K @ data_vector[i].x_next
-        zeta[n:, :] = u_next
+        zeta[n:] = u_next
         temp = np.kron(xi.T, xi.T) - np.kron(zeta.T, zeta.T)
         A[i, :] = temp
-        b[i, :] = x.T @ Q @ x + u.T @ R @ u
+        b[i] = x.T @ Q @ x + u.T @ R @ u
     S = np.linalg.lstsq(A, b, rcond=None)[0]
     S = S.reshape((n + m, n + m))
     return S

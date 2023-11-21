@@ -30,16 +30,17 @@ def simulation(controller):
     K = controller.get_K()
     data_contrainer = np.zeros(0, dtype=data_pair)
     robot = CartPole()
-    x = robot.get_lqr_state()
     n = robot.n_lqr
     m = robot.m_lqr
-    for i in range(1000):
-        u = K @ x + np.random.uniform(-10, 10, (m,))
-        x_next, _, _, _, _ = robot.step(u)
+    for i in range(100):
+        x = robot.get_lqr_state()
+        u = controller.fb_control(x) + np.random.normal(5, 5, (m,))
+        x_next, _, _, _, _ = robot.step_lqr(u)
+        # print("x_next: ", x_next)
         data = data_pair(n, m)
         data.x = x.reshape((n,))
         data.u = u
-        data.x_next = x.reshape((n,))
+        data.x_next = x_next.reshape((n,))
         data.K = K
         data_contrainer = np.append(data_contrainer, data)
 
@@ -70,7 +71,7 @@ def solve_S_from_data_collect(data_vector, Q, R):
     S = S.reshape((n + m, n + m))
     return S
 def learning():
-    iteration = 100
+    iteration = 10
     robot = CartPole()
     controller = fb_controller()
     K = controller.get_K()
@@ -81,31 +82,40 @@ def learning():
     R = robot.R_lqr
     K_contrainer = np.zeros((n * m, iteration))
     K_contrainer[:, 0] = K.reshape((n * m))
+    error_container = np.zeros((iteration, 1))
     for i in range(iteration - 1):
-        data_container = simulation(controller)
+        K_prev = np.zeros((n * m, 1))
+        while np.linalg.norm(K - K_prev) > 0.01:
+            print("error: ", np.linalg.norm(K - K_prev))
+            K_prev = K
 
-        S = solve_S_from_data_collect(data_container, Q, R)
+            data_container = simulation(controller)
 
-        # solve K from S
-        S_22 = S[n:, n:]
-        S_12 = S[:n, n:]
-        K = -np.linalg.inv(S_22) @ S_12.T
+            S = solve_S_from_data_collect(data_container, Q, R)
+
+            # solve K from S
+            S_22 = S[n:, n:]
+            S_12 = S[:n, n:]
+            K = -np.linalg.inv(S_22) @ S_12.T
+            controller.update_K(K)
+            print("K = ", K)
         K_contrainer[:, i + 1] = K.reshape((n * m, 1))[:, 0]
-        controller.update_K(K)
-        print("K = ", K)
+
+
 
     return K
 
 
 if __name__ == '__main__':
     K = learning()
-    # K = np.zeros(K.shape)
+    # K = np.array([[ 44.98615057, 11.86937562,5.24884431]])
+    # K = np.array([[36.1250999,   9.31310334,  2.80320203]])
     controller = fb_controller(K)
     robot = CartPole(gui=True)
     while 1:
         state = robot.get_lqr_state()
         print("state: ", state)
         u = controller.fb_control(state)
-        robot.step(u)
-        print(u)
+        robot.step_lqr(u)
+        # print(u)
         time.sleep(0.01)

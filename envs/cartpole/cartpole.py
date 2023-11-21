@@ -97,8 +97,8 @@ class CartPole(BaseEnv):
         # data driven LQR related
         self.n_lqr = 3
         self.m_lqr = 1
-        self.Q_lqr = np.diag(np.array([100, 100, 10]))
-        self.R_lqr = np.diag(np.array([1]))
+        self.Q_lqr = np.diag(np.array([100, 100, 80]))
+        self.R_lqr = np.diag(np.array([0.1]))
 
         self.reset()
 
@@ -180,6 +180,22 @@ class CartPole(BaseEnv):
 
         return self.state, reward, done, {}, {}
 
+    def step_lqr(self, action):
+        for _ in range(self.PYB_STEPS_PER_CTRL):
+            for i in [0, 1]:
+                p.setJointMotorControl2(self.CARTPOLE_ID, jointIndex=i, controlMode=p.VELOCITY_CONTROL, force=0,
+                                        physicsClientId=self.PYB_CLIENT)
+            # apply force to cartpole
+            p.setJointMotorControl2(self.CARTPOLE_ID, jointIndex=0, controlMode=p.TORQUE_CONTROL, force=action,
+                                    physicsClientId=self.PYB_CLIENT)
+            p.setJointMotorControl2(self.CARTPOLE_ID, jointIndex=1, controlMode=p.TORQUE_CONTROL, force=0,
+                                    physicsClientId=self.PYB_CLIENT)
+            p.stepSimulation(physicsClientId=self.PYB_CLIENT)
+
+        self.state = self.get_lqr_state()
+
+        return self.state, {}, {}, {}, {}
+
     def _compute_reward(self, state, action):
         x, theta, x_dot, theta_dot = state
         if self.reward_type == RewardType.RL:
@@ -206,9 +222,11 @@ class CartPole(BaseEnv):
 
     def get_lqr_state(self):
         # [theta, theta_dot, x_dot]
-        cart_state = p.getJointState(self.CARTPOLE_ID, jointIndex=0, physicsClientId=self.PYB_CLIENT)
-        pole_state = p.getJointState(self.CARTPOLE_ID, jointIndex=1, physicsClientId=self.PYB_CLIENT)
-        state = np.array([pole_state[0], pole_state[1], cart_state[1]])
+        x_dot = p.getJointState(self.CARTPOLE_ID, jointIndex=0, physicsClientId=self.PYB_CLIENT)[1]
+        theta = p.getJointState(self.CARTPOLE_ID, jointIndex=1, physicsClientId=self.PYB_CLIENT)[0]
+        theta_dot = p.getJointState(self.CARTPOLE_ID, jointIndex=1, physicsClientId=self.PYB_CLIENT)[1]
+        theta = utils.normalize_angle(theta)
+        state = np.array([theta, theta_dot, x_dot])
         return state
 
     def get_state(self):
