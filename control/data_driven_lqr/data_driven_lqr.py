@@ -47,7 +47,7 @@ def simulation(controller):
     return data_contrainer
 
 
-def solve_S_from_data_collect(data_vector, Q, R):
+def solve_S_from_data_collect(data_vector, Q, R, K0):
     # S can be solved with least square method
     n = data_vector[0].x.shape[0]
     m = data_vector[0].u.shape[0]
@@ -62,7 +62,7 @@ def solve_S_from_data_collect(data_vector, Q, R):
         xi[:n] = x
         xi[n:] = u
         zeta[:n] = data_vector[i].x_next
-        u_next = data_vector[i].K @ data_vector[i].x_next
+        u_next = K0 @ data_vector[i].x_next
         zeta[n:] = u_next
         temp = np.kron(xi.T, xi.T) - np.kron(zeta.T, zeta.T)
         A[i, :] = temp
@@ -84,14 +84,13 @@ def learning():
     K_contrainer[:, 0] = K.reshape((n * m))
     error_container = np.zeros((iteration, 1))
     for i in range(iteration - 1):
+        data_container = simulation(controller)
         K_prev = np.zeros((n * m, 1))
         while np.linalg.norm(K - K_prev) > 0.01:
             print("error: ", np.linalg.norm(K - K_prev))
             K_prev = K
 
-            data_container = simulation(controller)
-
-            S = solve_S_from_data_collect(data_container, Q, R)
+            S = solve_S_from_data_collect(data_container, Q, R, K)
 
             # solve K from S
             S_22 = S[n:, n:]
