@@ -107,14 +107,14 @@ def learning():
 
 if __name__ == '__main__':
     K = learning()
-    # K = np.array([[ 44.98615057, 11.86937562,5.24884431]])
+    K = np.array([[ 44.98615057, 11.86937562,5.24884431]])
     # K = np.array([[36.1250999,   9.31310334,  2.80320203]])
     controller = fb_controller(K)
     robot = CartPole(gui=True)
     while 1:
         state = robot.get_lqr_state()
         print("state: ", state)
-        u = controller.fb_control(state)
+        u = controller.fb_control(state) + np.random.uniform(-160, 160, (1,))
         robot.step_lqr(u)
         # print(u)
         time.sleep(0.01)

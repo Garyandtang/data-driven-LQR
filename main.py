@@ -102,6 +102,10 @@ def learning():
         S_12 = S[:n, n:]
         K = -np.linalg.inv(S_22) @ S_12.T
         k_vector[:, i+1] = K.reshape((n * m, 1))[:, 0]
+        S_11 = S[:n, :n]
+        B = lti.A @ np.linalg.inv(S_11 - lti.Q) @ S_12
+        recovered_B_vector = np.append(recovered_B_vector, B)
+        print("B = ", B)
         lti.update_K0(K)
         print("K = ", K)
 
@@ -114,6 +118,28 @@ def learning():
         plt.plot(np.ones((iteration, 1)) * optimal_K[i], label="K_{}_optimal".format(i))
         plt.legend()
         plt.show()
+
+
+def B_Indentifier():
+    lti = LTI()
+    n = lti.A.shape[0]
+    m = lti.B.shape[1]
+    iteration = 10
+    recovered_B_vector = np.zeros(0, dtype=np.ndarray)
+    for i in range(iteration - 1):
+        # random generate x0 from uniform distribution [-3, 3]
+        data_vector = simulation(lti)
+        # solve S from data
+        S = solve_S_from_data_collect(data_vector, lti.Q, lti.R)
+        # solve K from S
+        S_22 = S[n:, n:]
+        S_12 = S[:n, n:]
+        K = -np.linalg.inv(S_22) @ S_12.T
+        S_11 = S[:n, :n]
+        B = lti.A @ np.linalg.inv(S_11 - lti.Q) @ S_12
+        recovered_B_vector = np.append(recovered_B_vector, B)
+        print("B = ", B)
+        lti.update_K0(K)
 
 
 
@@ -144,7 +170,7 @@ def solve_S_from_data_collect(data_vector, Q, R):
 
 
 if __name__ == '__main__':
-    learning()
+    B_Indentifier()
     lti = LTI()
     print("optimal K = ", lti.get_optimal_K())
 
