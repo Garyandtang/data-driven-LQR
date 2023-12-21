@@ -25,7 +25,7 @@ class LTI:
     def __init__(self):
         self.A = np.array([[1.2, 0.5, 0.2], [0.1, 0.8, 0.3], [0.5, 0.1, 0.5]])
         self.B = np.array([[1, 0.1], [0.5, 0.2], [0.7, 1.0]])
-        self.c = np.array([0, 0, 0])
+        self.c = np.array([1, 0, 1])
 
         self.Q = np.array([[1, 0.1, 0.1], [0.1, 1, 0.1], [0.1, 0.1, 1]])
         self.R = np.array([[1, 0], [0, 1]])
@@ -58,6 +58,39 @@ class LTI:
         C = ct.ctrb(self.A, self.B)
         rank = np.linalg.matrix_rank(C)
         return rank == self.A.shape[0]
+
+    def solve_with_dp(self):
+        # argumented A, B
+        n = self.A.shape[0]
+        m = self.B.shape[1]
+        A = np.zeros((n + n, n + n))
+        A[:n, :n] = self.A
+        A[:n, n:] = np.eye(n)
+        A[n:, n:] = np.eye(n)
+        B = np.zeros((n + n, m))
+        B[:n, :] = self.B
+
+        # set Q
+        Q = np.zeros((n + n, n + n))
+        Q[:n, :n] = self.Q
+
+        # set R
+        R = self.R
+
+        # backward dp
+        S = np.zeros((n + n, n + n))
+        S_next = Q
+        K = np.zeros((m, n + n))
+        for i in range(10000):
+            K = -np.linalg.inv(R + B.T @ S_next @ B) @ B.T @ S_next @ A
+            S = A.T @ S_next @ A + Q + A.T @ S_next @ B @ K
+            S_next = S
+        print("K: ", K)
+
+        K_12 = K[:, n:]
+        print("res: ", self.B @ K_12)
+
+
 
     def check_feedback_stabilizable(self, K):
         assert K.shape[0] == self.B.shape[1] and K.shape[1] == self.A.shape[0]
@@ -197,8 +230,10 @@ def solve_S_from_data_collect(data_vector, Q, R):
 
 if __name__ == '__main__':
     # B_Indentifier()
-    learning()
+    # learning()
     lti = LTI()
+    lti.solve_with_dp()
+
     print("optimal K = ", lti.get_optimal_K())
 
 
