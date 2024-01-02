@@ -32,8 +32,8 @@ class LTI:
 
 
     def system_init(self):
-        l = 0.0518
-        r = 0.1908
+        l = np.random.uniform(0.2, 0.3)
+        r = np.random.uniform(0.03, 0.04)
         self.dt = 0.02
         self.v = 1
         self.w = 1
@@ -49,6 +49,31 @@ class LTI:
         self.Q = 2 * np.eye(3)
         self.R = 2 * np.eye(2)
 
+    def arguemented_system_init(self):
+        # argumented A, B
+        n = self.A.shape[0]
+        m = self.B.shape[1]
+        A = np.zeros((n + n, n + n))
+        A[:n, :n] = self.A
+        A[:n, n:] = np.eye(n)
+        A[n:, n:] = np.eye(n)
+        B = np.zeros((n + n, m))
+        B[:n, :] = self.B
+
+        # set Q
+        Q = np.zeros((n + n, n + n))
+        Q[:n, :n] = self.Q
+
+        # set R
+        R = self.R
+
+        self.A_arg = A
+        self.B_arg = B
+        self.Q_arg = Q
+        self.R_arg = R
+
+    def simulation_with_arguemented_system(self):
+        pass
 
     def controller_init(self):
         # self.K0 = np.array([[-01.2098405, -0.47989766, -0.12446556],
@@ -142,10 +167,10 @@ def simulation(lti):
     data.K = K
     data.k = k
     data.c = lti.c
-    for i in range(50):
+    for i in range(1500):
         # random generate u from uniform distribution [-3, 3]
         x = -100 + 200 * np.random.rand(n,)
-        u =  -100 + 200 * np.random.rand(m,)
+        u = -100 + 200 * np.random.rand(m,)
         x_next = lti.A @ x + lti.B @ u + lti.c
         pair = data_pair(n, m)
         pair.x = x
@@ -186,6 +211,10 @@ def B_Indentifier():
         print("optimal K: ", lti.get_optimal_K())
         print("====================================")
     print("K: ", K)
+    return K, k, B
+
+def evaluate(lti, K, k, B):
+    pass
 
 
 
